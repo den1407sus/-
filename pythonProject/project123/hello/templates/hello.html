@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КАРТА МИРА</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        /* Хедер с кнопками */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding: 12px 20px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .continent-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+
+        .continent-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .continent-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Панель с информацией о континенте - узкая и прозрачная */
+        .info-panel {
+            position: fixed;
+            top: 115px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 20px 24px;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            text-align: center;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            max-width: 360px;
+            width: calc(100% - 40px);
+        }
+
+        .info-panel h3 {
+            font-size: 20px;
+            margin-bottom: 12px;
+            color: #ffd700;
+        }
+
+        .info-panel p {
+            font-size: 13px;
+            margin: 8px 0;
+            line-height: 1.45;
+        }
+
+        .info-panel .close-info {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            pointer-events: auto;
+            opacity: 0.7;
+        }
+
+        .info-panel .close-info:hover {
+            opacity: 1;
+        }
+
+        .hidden-info {
+            display: none;
+        }
+
+        /* Контейнер для карты */
+        .map-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: #000;
+        }
+
+        .map-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .placeholder-full {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+        }
+
+        /* Панель ввода ссылки */
+        .input-overlay {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 80px;
+            z-index: 100;
+        }
+
+        .input-overlay input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 12px 20px;
+            border-radius: 40px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .input-overlay input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .input-overlay input:focus {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Кнопка смены языка */
+        .lang-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 101;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: monospace;
+        }
+
+        .lang-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 id="siteTitle">КАРТА МИРА</h1>
+    <div class="buttons-container">
+        <button class="continent-btn" data-continent="north_america" id="btnNA">Сев. Америка</button>
+        <button class="continent-btn" data-continent="south_america" id="btnSA">Юж. Америка</button>
+        <button class="continent-btn" data-continent="eurasia" id="btnEU">Евразия</button>
+        <button class="continent-btn" data-continent="africa" id="btnAF">Африка</button>
+        <button class="continent-btn" data-continent="australia" id="btnAU">Австралия</button>
+        <button class="continent-btn" data-continent="antarctica" id="btnAN">Антарктида</button>
+    </div>
+</div>
+
+<!-- Панель для отображения информации -->
+<div id="infoPanel" class="info-panel hidden-info">
+    <button class="close-info" id="closeInfoBtn">✕</button>
+    <h3 id="continentTitle"></h3>
+    <p id="countryInfo"></p>
+    <p id="capitalInfo"></p>
+    <p id="currencyInfo"></p>
+    <p id="languageInfo"></p>
+</div>
+
+<div class="map-container" id="mapContainer">
+    <div class="placeholder-full"></div>
+</div>
+
+<div class="input-overlay">
+    <img src="{% static "cam_00_signature_image_realistic_world_map_long.jpg" %}">
+</div>
+
+<button class="lang-btn" id="langBtn">🇬🇧 English</button>
+
+<script>
+    // Данные о континентах (русский язык) - полные тексты
+    const continentsDataRU = {
+        north_america: {
+            name: "Северная Америка",
+            largestCountry: "США",
+            capital: "Вашингтон",
+            currency: "Доллар США (USD)",
+            language: "Английский"
+        },
+        south_america: {
+            name: "Южная Америка",
+            largestCountry: "Бразилия",
+            capital: "Бразилиа",
+            currency: "Бразильский реал (BRL)",
+            language: "Португальский / Испанский"
+        },
+        eurasia: {
+            name: "Евразия",
+            largestCountry: "Россия",
+            capital: "Москва",
+            currency: "Рубль (RUB) / Евро (EUR)",
+            language: "Русский / Английский"
+        },
+        africa: {
+            name: "Африка",
+            largestCountry: "Алжир",
+            capital: "Аддис-Абеба (Эфиопия)",
+            currency: "Разные (рэнд, франк, динар и др.)",
+            language: "Английский / Французский / Арабский"
+        },
+        australia: {
+            name: "Австралия",
+            largestCountry: "Австралия",
+            capital: "Канберра",
+            currency: "Австралийский доллар (AUD)",
+            language: "Английский"
+        },
+        antarctica: {
+            name: "Антарктида",
+            largestCountry: "Нет стран",
+            capital: "Нет постоянной столицы",
+            currency: "Нет официальной валюты",
+            language: "Разные языки (научные станции)"
+        }
+    };
+
+    // Данные о континентах (английский язык) - полные тексты
+    const continentsDataEN = {
+        north_america: {
+            name: "North America",
+            largestCountry: "USA",
+            capital: "Washington, D.C.",
+            currency: "US Dollar (USD)",
+            language: "English"
+        },
+        south_america: {
+            name: "South America",
+            largestCountry: "Brazil",
+            capital: "Brasília",
+            currency: "Brazilian Real (BRL)",
+            language: "Portuguese / Spanish"
+        },
+        eurasia: {
+            name: "Eurasia",
+            largestCountry: "Russia",
+            capital: "Moscow",
+            currency: "Russian Ruble (RUB) / Euro (EUR)",
+            language: "Russian / English"
+        },
+        africa: {
+            name: "Africa",
+            largestCountry: "Algeria",
+            capital: "Addis Ababa (Ethiopia)",
+            currency: "Various (Rand, Franc, Dinar, etc.)",
+            language: "English / French / Arabic"
+        },
+        australia: {
+            name: "Australia",
+            largestCountry: "Australia",
+            capital: "Canberra",
+            currency: "Australian Dollar (AUD)",
+            language: "English"
+        },
+        antarctica: {
+            name: "Antarctica",
+            largestCountry: "No countries",
+            capital: "No permanent capital",
+            currency: "No official currency",
+            language: "Various languages (research stations)"
+        }
+    };
+
+    let currentLanguage = 'ru';
+    let currentContinent = null;
+
+    const container = document.getElementById('mapContainer');
+    const input = document.getElementById('imageUrl');
+    const header = document.querySelector('.header');
+    const infoPanel = document.getElementById('infoPanel');
+    const continentTitle = document.getElementById('continentTitle');
+    const countryInfo = document.getElementById('countryInfo');
+    const capitalInfo = document.getElementById('capitalInfo');
+    const currencyInfo = document.getElementById('currencyInfo');
+    const languageInfo = document.getElementById('languageInfo');
+    const closeInfoBtn = document.getElementById('closeInfoBtn');
+    const langBtn = document.getElementById('langBtn');
+    const siteTitle = document.getElementById('siteTitle');
+
+    // Тексты для всего интерфейса
+    const uiTexts = {
+        ru: {
+            title: "КАРТА МИРА",
+            langBtn: "🇬🇧 English",
+            placeholder: "Вставьте ссылку на картинку...",
+            countryPrefix: "🏆 Крупнейшая страна: ",
+            capitalPrefix: "🏛️ Столица: ",
+            currencyPrefix: "💰 Валюта: ",
+            languagePrefix: "🗣️ Язык: ",
+            btnNA: "Сев. Америка",
+            btnSA: "Юж. Америка",
+            btnEU: "Евразия",
+            btnAF: "Африка",
+            btnAU: "Австралия",
+            btnAN: "Антарктида"
+        },
+        en: {
+            title: "WORLD MAP",
+            langBtn: "🇷🇺 Русский",
+            placeholder: "Paste image link...",
+            countryPrefix: "🏆 Largest country: ",
+            capitalPrefix: "🏛️ Capital: ",
+            currencyPrefix: "💰 Currency: ",
+            languagePrefix: "🗣️ Language: ",
+            btnNA: "North America",
+            btnSA: "South America",
+            btnEU: "Eurasia",
+            btnAF: "Africa",
+            btnAU: "Australia",
+            btnAN: "Antarctica"
+        }
+    };
+
+    // Функция обновления всего текста на сайте
+    function updateUILanguage() {
+        const texts = uiTexts[currentLanguage];
+
+        // Заголовок сайта
+        siteTitle.textContent = texts.title;
+
+        // Кнопка смены языка
+        langBtn.textContent = texts.langBtn;
+
+        // Поле ввода
+        input.placeholder = texts.placeholder;
+
+        // Кнопки континентов
+        document.getElementById('btnNA').textContent = texts.btnNA;
+        document.getElementById('btnSA').textContent = texts.btnSA;
+        document.getElementById('btnEU').textContent = texts.btnEU;
+        document.getElementById('btnAF').textContent = texts.btnAF;
+        document.getElementById('btnAU').textContent = texts.btnAU;
+        document.getElementById('btnAN').textContent = texts.btnAN;
+
+        // Если открыта панель с информацией о континенте - обновляем её
+        if (currentContinent !== null && !infoPanel.classList.contains('hidden-info')) {
+            updateInfoPanelContent();
+        }
+    }
+
+    // Функция обновления содержимого информационной панели
+    function updateInfoPanelContent() {
+        if (!currentContinent) return;
+
+        const texts = uiTexts[currentLanguage];
+        const data = currentLanguage === 'ru' ? continentsDataRU[currentContinent] : continentsDataEN[currentContinent];
+
+        if (data) {
+            continentTitle.textContent = data.name;
+            countryInfo.innerHTML = `${texts.countryPrefix}${data.largestCountry}`;
+            capitalInfo.innerHTML = `${texts.capitalPrefix}${data.capital}`;
+            currencyInfo.innerHTML = `${texts.currencyPrefix}${data.currency}`;
+            languageInfo.innerHTML = `${texts.languagePrefix}${data.language}`;
+        }
+    }
+
+    // Функция для показа информации о континенте
+    function showContinentInfo(continentId) {
+        currentContinent = continentId;
+        updateInfoPanelContent();
+        infoPanel.classList.remove('hidden-info');
+    }
+
+    // Скрыть панель информации
+    function hideInfoPanel() {
+        infoPanel.classList.add('hidden-info');
+        currentContinent = null;
+    }
+
+    // Функция для обновления картинки
+    function updateFullscreenImage() {
+        let url = input.value.trim();
+
+        if (url === '') {
+            container.innerHTML = '<div class="placeholder-full"></div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="placeholder-full"></div>';
+
+        const img = new Image();
+        img.onload = () => {
+            container.innerHTML = '';
+            const newImg = document.createElement('img');
+            newImg.src = url;
+            newImg.alt = '';
+            newImg.style.width = '100%';
+            newImg.style.height = '100%';
+            newImg.style.objectFit = 'cover';
+
+            const headerHeight = header.offsetHeight;
+            newImg.style.objectPosition = `center ${headerHeight}px`;
+
+            container.appendChild(newImg);
+        };
+
+        img.onerror = () => {
+            container.innerHTML = '<div class="placeholder-full"></div>';
+        };
+
+        img.src = url;
+    }
+
+    // Смена языка
+    function switchLanguage() {
+        if (currentLanguage === 'ru') {
+            currentLanguage = 'en';
+        } else {
+            currentLanguage = 'ru';
+        }
+        updateUILanguage();
+    }
+
+    // Назначаем обработчики для кнопок континентов
+    document.querySelectorAll('.continent-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const continent = btn.getAttribute('data-continent');
+            showContinentInfo(continent);
+        });
+    });
+
+    // Закрытие панели по кнопке
+    closeInfoBtn.addEventListener('click', hideInfoPanel);
+
+    // Кнопка смены языка
+    langBtn.addEventListener('click', switchLanguage);
+
+    // Изменение размера окна
+    window.addEventListener('resize', () => {
+        if (input.value.trim() !== '') {
+            updateFullscreenImage();
+        }
+    });
+
+    input.addEventListener('input', updateFullscreenImage);
+    input.addEventListener('paste', () => setTimeout(updateFullscreenImage, 10));
+
+    // Инициализация
+    setTimeout(() => {
+        if (input.value.trim() !== '') updateFullscreenImage();
+    }, 100);
+</script>
+
+</body>
+</html>
